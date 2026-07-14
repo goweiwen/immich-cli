@@ -1,4 +1,4 @@
-import { getAllAlbums, searchPerson, type AlbumResponseDto, type PersonResponseDto } from "@immich/sdk";
+import { getAllAlbums, getAllTags, searchPerson, type AlbumResponseDto, type PersonResponseDto, type TagResponseDto } from "@immich/sdk";
 
 function pickUnique<T>(matches: T[], name: (t: T) => string, query: string, kind: string): T {
   if (matches.length === 0) {
@@ -20,4 +20,12 @@ export async function resolveAlbum(query: string): Promise<AlbumResponseDto> {
   const all = await getAllAlbums({});
   const matches = all.filter((a) => a.albumName.toLowerCase().includes(query.toLowerCase()));
   return pickUnique(matches, (a) => a.albumName, query, "album");
+}
+
+export async function resolveTag(query: string): Promise<TagResponseDto> {
+  const all = await getAllTags();
+  const matches = all.filter(
+    (t) => t.name.toLowerCase().includes(query.toLowerCase()) || t.value.toLowerCase().includes(query.toLowerCase()),
+  );
+  return pickUnique(matches, (t) => t.value, query, "tag");
 }
