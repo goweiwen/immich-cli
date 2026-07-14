@@ -1,14 +1,34 @@
 {
   "name": "immich-cli",
   "version": "0.1.0",
-  "private": true,
+  "description": "CLI over @immich/sdk for querying an Immich photo library by text, person, album, or date range",
+  "keywords": [
+    "immich",
+    "cli",
+    "photos"
+  ],
+  "homepage": "https://github.com/goweiwen/immich-api#readme",
+  "bugs": "https://github.com/goweiwen/immich-api/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goweiwen/immich-api.git"
+  },
+  "license": "MIT",
+  "author": "Wei Wen Goh <goweiwen@gmail.com>",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "immich": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@immich/sdk": "^3.0.2",
