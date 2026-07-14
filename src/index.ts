@@ -12,7 +12,7 @@ import {
   AssetVisibility,
   type AssetResponseDto,
 } from "@immich/sdk";
-import { initClient, shareUrl, assetUrl, formatError } from "./client.js";
+import { initClient, shareUrl, assetUrl, rawUrl, formatError } from "./client.js";
 import { resolveAlbum, resolvePerson, resolveTag } from "./resolve.js";
 import { formatAsset } from "./format.js";
 
@@ -135,7 +135,7 @@ async function buildFilters(opts: {
   return filters;
 }
 
-async function printResults(assets: AssetResponseDto[], json: boolean, share: boolean): Promise<void> {
+async function printResults(assets: AssetResponseDto[], json: boolean, share: boolean, raw: boolean): Promise<void> {
   if (assets.length === 0) {
     console.log("no matching photos");
     return;
@@ -143,8 +143,11 @@ async function printResults(assets: AssetResponseDto[], json: boolean, share: bo
 
   // Resolve per-asset URLs up front: a share deep link into the created
   // share (recipients need no login) if --share, else the private
-  // authenticated web link (only useful to the logged-in owner).
+  // authenticated web link (only useful to the logged-in owner). --raw
+  // swaps either of these for the underlying image URL, carrying the share
+  // key along so it still works without a login.
   let urlFor = (asset: AssetResponseDto) => assetUrl(asset.id);
+  let shareKey: string | undefined;
   let expiresAt: string | undefined;
   if (share) {
     expiresAt = new Date(Date.now() + SHARE_LINK_TTL_MS).toISOString();
@@ -156,7 +159,11 @@ async function printResults(assets: AssetResponseDto[], json: boolean, share: bo
         expiresAt,
       },
     });
+    shareKey = link.key;
     urlFor = (asset: AssetResponseDto) => shareUrl(link.key, asset.id);
+  }
+  if (raw) {
+    urlFor = (asset: AssetResponseDto) => rawUrl(asset.id, shareKey);
   }
 
   if (json) {
@@ -209,6 +216,7 @@ program
   .option("-n, --limit <n>", "max results", "20")
   .option("--json", "print raw JSON instead of a formatted list")
   .option("--share", "create a public share link for the results")
+  .option("--raw", "link directly to the raw image instead of the Immich web UI")
   .action(async (query: string | undefined, opts) => {
     initClient();
     try {
@@ -218,7 +226,7 @@ program
             smartSearchDto: { ...filters, query, queryAssetId: opts.like, language: opts.language },
           })
         : await searchAssets({ metadataSearchDto: { ...filters, withPeople: true } });
-      await printResults(result.assets.items, Boolean(opts.json), Boolean(opts.share));
+      await printResults(result.assets.items, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
       process.exitCode = 1;

@@ -34,6 +34,15 @@ export function shareUrl(key: string, assetId?: string): string {
   return assetId ? `${base}/photos/${assetId}` : base;
 }
 
+// A share key must be passed as a query param here (rather than requiring the
+// viewer to be logged in) since shared links grant access without an account.
+export function rawUrl(assetId: string, shareKey?: string): string {
+  const apiBase = withApiSuffix(process.env.IMMICH_INSTANCE_URL ?? "");
+  const params = new URLSearchParams({ size: "preview" });
+  if (shareKey) params.set("key", shareKey);
+  return `${apiBase}/assets/${assetId}/thumbnail?${params}`;
+}
+
 export function formatError(err: unknown): string {
   if (isHttpError(err)) {
     const detail = err.data?.message ?? err.data?.error ?? JSON.stringify(err.data);
