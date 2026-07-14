@@ -1,6 +1,6 @@
 {
   "name": "immich-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CLI over @immich/sdk for querying an Immich photo library by text, person, album, or date range",
   "keywords": [
     "immich",
