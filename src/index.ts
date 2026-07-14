@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { Command, Option } from "commander";
 import {
   getAllAlbums,
@@ -25,12 +26,14 @@ const ASSET_TYPES: Record<string, AssetTypeEnum> = {
   other: AssetTypeEnum.Other,
 };
 
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
 const program = new Command();
 
 program
   .name("immich")
   .description("Query an Immich photo library")
-  .version("0.2.0")
+  .version(version)
   .helpCommand(false);
 
 interface SearchFilters {
