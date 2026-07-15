@@ -24,6 +24,9 @@ Put `dist/index.js` on `PATH` as `immich` (e.g. `npm link`, or symlink it) so th
 immich search [query] [-p <person>]... [-a <album>] [--after <iso8601>] [--before <iso8601>] [--favorite] [-n <limit>] [--json] [--share]
 immich people [name]
 immich albums [name]
+immich info <id> [--key <shareKey>] [--json] [--raw]
 ```
 
 `search` with a `query` runs Immich's smart (CLIP) search; without one it runs a plain metadata/filter search. Both accept the same `-p`/`-a`/`--after`/`--before`/`--favorite` filters and can be combined freely. `--share` creates a public Immich share link for the matched photos and prints its URL.
+
+`info` fetches full metadata (EXIF, GPS, people, tags, stack) for a single asset by ID.

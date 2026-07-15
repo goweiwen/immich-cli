@@ -4,6 +4,7 @@ import { Command, Option } from "commander";
 import {
   getAllAlbums,
   getAllPeople,
+  getAssetInfo,
   searchAssets,
   searchPerson,
   searchSmart,
@@ -15,7 +16,7 @@ import {
 } from "@immich/sdk";
 import { initClient, shareUrl, assetUrl, rawUrl, formatError } from "./client.js";
 import { resolveAlbum, resolvePerson, resolveTag } from "./resolve.js";
-import { formatAsset } from "./format.js";
+import { formatAsset, formatAssetDetail } from "./format.js";
 
 const SHARE_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -273,6 +274,29 @@ program
       }
       for (const a of albums) {
         console.log(`${a.id}  ${a.albumName}  (${a.assetCount} photos, ${a.startDate ?? "?"} to ${a.endDate ?? "?"})`);
+      }
+    } catch (err) {
+      console.error(`immich: ${formatError(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("info")
+  .description("Show full metadata for an asset by ID")
+  .argument("<id>", "asset ID")
+  .option("--key <shareKey>", "shared link key, for accessing an asset via a share")
+  .option("--json", "print raw JSON instead of a formatted summary")
+  .option("--raw", "link directly to the raw image instead of the Immich web UI")
+  .action(async (id: string, opts: { key?: string; json?: boolean; raw?: boolean }) => {
+    initClient();
+    try {
+      const asset = await getAssetInfo({ id, key: opts.key });
+      const url = opts.raw ? rawUrl(asset.id, opts.key) : assetUrl(asset.id);
+      if (opts.json) {
+        console.log(JSON.stringify({ ...asset, url }, null, 2));
+      } else {
+        console.log(formatAssetDetail(asset, url));
       }
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
