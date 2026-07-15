@@ -251,7 +251,8 @@ program
   .description("List people, or search by name")
   .argument("[name]", "substring to search for")
   .option("--unnamed", "also include unnamed people")
-  .action(async (name: string | undefined, opts: { unnamed?: boolean }) => {
+  .option("--json", "print raw JSON instead of a formatted list")
+  .action(async (name: string | undefined, opts: { unnamed?: boolean; json?: boolean }) => {
     initClient();
     try {
       let people = name ? await searchPerson({ name }) : (await getAllPeople({})).people;
@@ -260,9 +261,15 @@ program
       }
       if (people.length === 0) {
         console.log("no matching people");
+        return;
+      }
+      if (opts.json) {
+        console.log(JSON.stringify(people, null, 2));
+        return;
       }
       for (const p of people) {
-        console.log(`${p.id}  ${p.name || "(unnamed)"}`);
+        const birthday = p.birthDate ? `  born ${p.birthDate}` : "";
+        console.log(`${p.id}  ${p.name || "(unnamed)"}${birthday}`);
       }
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
