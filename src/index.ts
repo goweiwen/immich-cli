@@ -7,6 +7,7 @@ import {
   getAssetInfo,
   searchAssets,
   searchPerson,
+  searchRandom,
   searchSmart,
   createSharedLink,
   SharedLinkType,
@@ -140,7 +141,7 @@ async function buildFilters(opts: {
   return filters;
 }
 
-async function printResults(assets: AssetResponseDto[], total: number, json: boolean, share: boolean, raw: boolean): Promise<void> {
+async function printResults(assets: AssetResponseDto[], total: number | undefined, json: boolean, share: boolean, raw: boolean): Promise<void> {
   if (assets.length === 0) {
     console.log("no matching photos");
     return;
@@ -172,10 +173,13 @@ async function printResults(assets: AssetResponseDto[], total: number, json: boo
   }
 
   if (json) {
-    console.log(JSON.stringify({ total, items: assets.map((a) => ({ ...a, url: urlFor(a) })) }, null, 2));
+    const body = total === undefined ? { items: assets.map((a) => ({ ...a, url: urlFor(a) })) } : { total, items: assets.map((a) => ({ ...a, url: urlFor(a) })) };
+    console.log(JSON.stringify(body, null, 2));
   } else {
     console.log(assets.map((a) => formatAsset(a, urlFor(a))).join("\n"));
-    console.log(`\n${assets.length} of ${total} matching photos`);
+    if (total !== undefined) {
+      console.log(`\n${assets.length} of ${total} matching photos`);
+    }
   }
   if (expiresAt) {
     console.log(`\nshare link expires ${expiresAt}`);
@@ -240,6 +244,24 @@ program
             metadataSearchDto: { ...filters, withPeople: true, withExif: true, order: opts.order as AssetOrder | undefined },
           });
       await printResults(result.assets.items, result.assets.total, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
+    } catch (err) {
+      console.error(`immich: ${formatError(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("random")
+  .description("Show random photos")
+  .option("-n, --limit <n>", "number of photos", "1")
+  .option("--json", "print raw JSON instead of a formatted list")
+  .option("--share", "create a public share link for the results")
+  .option("--raw", "link directly to the raw image instead of the Immich web UI")
+  .action(async (opts: { limit: string; json?: boolean; share?: boolean; raw?: boolean }) => {
+    initClient();
+    try {
+      const assets = await searchRandom({ randomSearchDto: { size: Number(opts.limit), withExif: true, withPeople: true } });
+      await printResults(assets, undefined, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
       process.exitCode = 1;

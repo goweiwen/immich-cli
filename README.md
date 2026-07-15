@@ -22,6 +22,7 @@ Put `dist/index.js` on `PATH` as `immich` (e.g. `npm link`, or symlink it) so th
 
 ```
 immich search [query] [-p <person>]... [-a <album>] [--after <iso8601>] [--before <iso8601>] [--favorite] [--order <asc|desc>] [-n <limit>] [--json] [--share]
+immich random [-n <count>] [--json] [--share]
 immich people [name] [--unnamed] [--json]
 immich albums [name]
 immich info <id> [--key <shareKey>] [--json] [--raw]
@@ -32,3 +33,5 @@ immich info <id> [--key <shareKey>] [--json] [--raw]
 `info` fetches full metadata (EXIF, GPS, people, tags, stack) for a single asset by ID.
 
 `people` prints each person's birth date when known, useful for computing date ranges around events like birthdays.
+
+`random` returns an unfiltered random sample of photos.
