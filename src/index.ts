@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
+import { writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Command, Option } from "commander";
 import {
   getAllAlbums,
@@ -10,7 +13,9 @@ import {
   searchRandom,
   searchSmart,
   createSharedLink,
+  viewAsset,
   SharedLinkType,
+  AssetMediaSize,
   AssetOrder,
   AssetTypeEnum,
   AssetVisibility,
@@ -336,6 +341,34 @@ program
       } else {
         console.log(formatAssetDetail(asset, url));
       }
+    } catch (err) {
+      console.error(`immich: ${formatError(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+const VIEW_SIZES: Record<string, AssetMediaSize> = {
+  thumbnail: AssetMediaSize.Thumbnail,
+  preview: AssetMediaSize.Preview,
+  fullsize: AssetMediaSize.Fullsize,
+  original: AssetMediaSize.Original,
+};
+
+program
+  .command("view")
+  .description("Save a photo to a local file so it can be displayed, e.g. by an LLM's image tool")
+  .argument("<id>", "asset ID")
+  .option("--key <shareKey>", "shared link key, for accessing an asset via a share")
+  .addOption(new Option("--size <size>", "image size to fetch").choices(Object.keys(VIEW_SIZES)).default("preview"))
+  .option("-o, --output <path>", "write to this path instead of a temp file")
+  .action(async (id: string, opts: { key?: string; size: string; output?: string }) => {
+    initClient();
+    try {
+      const blob = await viewAsset({ id, key: opts.key, size: VIEW_SIZES[opts.size] });
+      const ext = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+      const path = opts.output ?? join(tmpdir(), `immich-${id}.${ext}`);
+      await writeFile(path, Buffer.from(await blob.arrayBuffer()));
+      console.log(path);
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
       process.exitCode = 1;

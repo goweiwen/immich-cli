@@ -26,6 +26,7 @@ immich random [-n <count>] [--json] [--share]
 immich people [name] [--unnamed] [--json]
 immich albums [name]
 immich info <id> [--key <shareKey>] [--json] [--raw]
+immich view <id> [--key <shareKey>] [--size <thumbnail|preview|fullsize|original>] [-o <path>]
 ```
 
 `search` with a `query` runs Immich's smart (CLIP) search; without one it runs a plain metadata/filter search. Both accept the same `-p`/`-a`/`--after`/`--before`/`--favorite` filters and can be combined freely. Results always include EXIF and people. `--order asc|desc` sorts by date (metadata search only, ignored for a text/`--like` query since CLIP ranks by similarity); combine with `-n 1` for "most recent" or "first ever" lookups. Output reports how many results are shown out of the total matches. `--share` creates a public Immich share link for the matched photos and prints its URL.
@@ -35,3 +36,5 @@ immich info <id> [--key <shareKey>] [--json] [--raw]
 `people` prints each person's birth date when known, useful for computing date ranges around events like birthdays.
 
 `random` returns an unfiltered random sample of photos.
+
+`view` downloads a photo (default: `preview` size, a normalized JPEG) to a local file and prints the path, using the CLI's own credentials, no public share link required. Meant for feeding a photo to an LLM's image-viewing tool.
