@@ -10,6 +10,7 @@ import {
   searchSmart,
   createSharedLink,
   SharedLinkType,
+  AssetOrder,
   AssetTypeEnum,
   AssetVisibility,
   type AssetResponseDto,
@@ -139,7 +140,7 @@ async function buildFilters(opts: {
   return filters;
 }
 
-async function printResults(assets: AssetResponseDto[], json: boolean, share: boolean, raw: boolean): Promise<void> {
+async function printResults(assets: AssetResponseDto[], total: number, json: boolean, share: boolean, raw: boolean): Promise<void> {
   if (assets.length === 0) {
     console.log("no matching photos");
     return;
@@ -171,9 +172,10 @@ async function printResults(assets: AssetResponseDto[], json: boolean, share: bo
   }
 
   if (json) {
-    console.log(JSON.stringify(assets.map((a) => ({ ...a, url: urlFor(a) })), null, 2));
+    console.log(JSON.stringify({ total, items: assets.map((a) => ({ ...a, url: urlFor(a) })) }, null, 2));
   } else {
     console.log(assets.map((a) => formatAsset(a, urlFor(a))).join("\n"));
+    console.log(`\n${assets.length} of ${total} matching photos`);
   }
   if (expiresAt) {
     console.log(`\nshare link expires ${expiresAt}`);
@@ -217,6 +219,7 @@ program
   .option("--deleted", "include trashed assets")
   .option("--like <assetId>", "find photos visually similar to this asset ID (reverse image search)")
   .option("--language <code>", "language of the search query, e.g. \"de\" (semantic search only)")
+  .addOption(new Option("--order <asc|desc>", "sort by date; use desc + -n 1 for \"most recent\", asc + -n 1 for \"first ever\" (metadata search only, ignored for a text/--like query)").choices(["asc", "desc"]))
   .option("-n, --limit <n>", "max results", "20")
   .option("--json", "print raw JSON instead of a formatted list")
   .option("--share", "create a public share link for the results")
@@ -225,12 +228,18 @@ program
     initClient();
     try {
       const filters = await buildFilters(opts);
-      const result = query || opts.like
+      const isSmartSearch = Boolean(query || opts.like);
+      if (opts.order && isSmartSearch) {
+        console.error("immich: --order has no effect on a text/--like search; CLIP results are ranked by similarity, not sortable by date");
+      }
+      const result = isSmartSearch
         ? await searchSmart({
-            smartSearchDto: { ...filters, query, queryAssetId: opts.like, language: opts.language },
+            smartSearchDto: { ...filters, query, queryAssetId: opts.like, language: opts.language, withExif: true },
           })
-        : await searchAssets({ metadataSearchDto: { ...filters, withPeople: true } });
-      await printResults(result.assets.items, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
+        : await searchAssets({
+            metadataSearchDto: { ...filters, withPeople: true, withExif: true, order: opts.order as AssetOrder | undefined },
+          });
+      await printResults(result.assets.items, result.assets.total, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
       process.exitCode = 1;

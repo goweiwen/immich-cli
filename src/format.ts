@@ -5,7 +5,9 @@ export function formatAsset(asset: AssetResponseDto, url?: string): string {
   const date = asset.fileCreatedAt.slice(0, 10);
   const names = asset.people?.map((p) => p.name).filter(Boolean) ?? [];
   const people = names.length ? ` [${names.join(", ")}]` : "";
-  return `${date}  ${asset.id}  ${asset.originalFileName}${people}\n  ${url ?? assetUrl(asset.id)}`;
+  const place = [asset.exifInfo?.city, asset.exifInfo?.state, asset.exifInfo?.country].filter(Boolean).join(", ");
+  const location = place ? ` (${place})` : "";
+  return `${date}  ${asset.id}  ${asset.originalFileName}${people}${location}\n  ${url ?? assetUrl(asset.id)}`;
 }
 
 export function formatAssetDetail(asset: AssetResponseDto, url?: string): string {
