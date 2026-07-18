@@ -6,3 +6,4 @@ release bump:
     jj bookmark set main -r @-
     jj git push --bookmark main
     gh release create "v$(node -p "require('./package.json').version")" --generate-notes
+    npm publish
