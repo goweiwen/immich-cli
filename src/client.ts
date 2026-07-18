@@ -37,12 +37,15 @@ export function shareUrl(key: string, assetId?: string): string {
 // A share key must be passed as a query param here (rather than requiring the
 // viewer to be logged in) since shared links grant access without an account.
 // Videos link to the playback endpoint rather than the thumbnail, which is a
-// still frame, so the URL points at actual video content.
+// still frame, so the URL points at actual video content. A trailing ".mp4"
+// query key (harmless to the server) makes clients that sniff the URL's
+// extension, e.g. chat apps generating link previews, recognize it as video.
 export function rawUrl(assetId: string, shareKey?: string, assetType?: AssetTypeEnum): string {
   const apiBase = withApiSuffix(process.env.IMMICH_INSTANCE_URL ?? "");
   const params = new URLSearchParams(shareKey ? { key: shareKey } : {});
   if (assetType === AssetTypeEnum.Video) {
-    return `${apiBase}/assets/${assetId}/video/playback?${params}`;
+    const query = params.toString();
+    return `${apiBase}/assets/${assetId}/video/playback?${query}${query ? "&" : ""}.mp4`;
   }
   params.set("size", "preview");
   return `${apiBase}/assets/${assetId}/thumbnail?${params}`;
