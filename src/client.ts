@@ -1,4 +1,4 @@
-import { init, isHttpError } from "@immich/sdk";
+import { init, isHttpError, AssetTypeEnum } from "@immich/sdk";
 
 // The Immich web app and API share a host; a base URL without "/api" hits the
 // SPA instead, which answers JSON requests with a 406 "text/html" HTML error
@@ -36,10 +36,15 @@ export function shareUrl(key: string, assetId?: string): string {
 
 // A share key must be passed as a query param here (rather than requiring the
 // viewer to be logged in) since shared links grant access without an account.
-export function rawUrl(assetId: string, shareKey?: string): string {
+// Videos link to the playback endpoint rather than the thumbnail, which is a
+// still frame, so the URL points at actual video content.
+export function rawUrl(assetId: string, shareKey?: string, assetType?: AssetTypeEnum): string {
   const apiBase = withApiSuffix(process.env.IMMICH_INSTANCE_URL ?? "");
-  const params = new URLSearchParams({ size: "preview" });
-  if (shareKey) params.set("key", shareKey);
+  const params = new URLSearchParams(shareKey ? { key: shareKey } : {});
+  if (assetType === AssetTypeEnum.Video) {
+    return `${apiBase}/assets/${assetId}/video/playback?${params}`;
+  }
+  params.set("size", "preview");
   return `${apiBase}/assets/${assetId}/thumbnail?${params}`;
 }
 

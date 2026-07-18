@@ -174,7 +174,7 @@ async function printResults(assets: AssetResponseDto[], total: number | undefine
     urlFor = (asset: AssetResponseDto) => shareUrl(link.key, asset.id);
   }
   if (raw) {
-    urlFor = (asset: AssetResponseDto) => rawUrl(asset.id, shareKey);
+    urlFor = (asset: AssetResponseDto) => rawUrl(asset.id, shareKey, asset.type);
   }
 
   if (json) {
@@ -335,7 +335,7 @@ program
     initClient();
     try {
       const asset = await getAssetInfo({ id, key: opts.key });
-      const url = opts.raw ? rawUrl(asset.id, opts.key) : assetUrl(asset.id);
+      const url = opts.raw ? rawUrl(asset.id, opts.key, asset.type) : assetUrl(asset.id);
       if (opts.json) {
         console.log(JSON.stringify({ ...asset, url }, null, 2));
       } else {
