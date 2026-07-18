@@ -259,13 +259,21 @@ program
   .command("random")
   .description("Show random photos")
   .option("-n, --limit <n>", "number of photos", "1")
+  .addOption(new Option("--type <type>", "filter by asset type").choices(["image", "video", "audio", "other"]))
   .option("--json", "print raw JSON instead of a formatted list")
   .option("--share", "create a public share link for the results")
   .option("--raw", "link directly to the raw image instead of the Immich web UI")
-  .action(async (opts: { limit: string; json?: boolean; share?: boolean; raw?: boolean }) => {
+  .action(async (opts: { limit: string; type?: "image" | "video" | "audio" | "other"; json?: boolean; share?: boolean; raw?: boolean }) => {
     initClient();
     try {
-      const assets = await searchRandom({ randomSearchDto: { size: Number(opts.limit), withExif: true, withPeople: true } });
+      const assets = await searchRandom({
+        randomSearchDto: {
+          size: Number(opts.limit),
+          withExif: true,
+          withPeople: true,
+          ...(opts.type ? { type: ASSET_TYPES[opts.type] } : {}),
+        },
+      });
       await printResults(assets, undefined, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
