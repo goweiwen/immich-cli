@@ -21,11 +21,26 @@ import {
   AssetVisibility,
   type AssetResponseDto,
 } from "@immich/sdk";
-import { initClient, shareUrl, assetUrl, rawUrl, formatError } from "./client.js";
+import { initClient, shareUrl, assetUrl, rawUrl, formatError, DEFAULT_MAX_VIDEO_BYTES } from "./client.js";
 import { resolveAlbum, resolvePerson, resolveTag } from "./resolve.js";
 import { formatAsset, formatAssetDetail } from "./format.js";
 
 const SHARE_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+const DEFAULT_MAX_VIDEO_MB = String(DEFAULT_MAX_VIDEO_BYTES / (1024 * 1024));
+
+// --raw companion option: a raw video URL falls back to its thumbnail once the
+// served MP4 exceeds this many MB (see rawUrl). A fresh Option per command since
+// commander mutates parsed state onto the instance.
+const maxVideoOption = () =>
+  new Option(
+    "--max-video-mb <mb>",
+    "max size (MB) of a raw video URL before falling back to its thumbnail",
+  ).default(DEFAULT_MAX_VIDEO_MB);
+
+function maxVideoBytes(opts: { maxVideoMb?: string }): number {
+  return Number(opts.maxVideoMb ?? DEFAULT_MAX_VIDEO_MB) * 1024 * 1024;
+}
 
 const ASSET_TYPES: Record<string, AssetTypeEnum> = {
   image: AssetTypeEnum.Image,
@@ -146,7 +161,7 @@ async function buildFilters(opts: {
   return filters;
 }
 
-async function printResults(assets: AssetResponseDto[], total: number | undefined, json: boolean, share: boolean, raw: boolean): Promise<void> {
+async function printResults(assets: AssetResponseDto[], total: number | undefined, json: boolean, share: boolean, raw: boolean, maxVideoBytes: number): Promise<void> {
   if (assets.length === 0) {
     console.log("no matching photos");
     return;
@@ -157,7 +172,7 @@ async function printResults(assets: AssetResponseDto[], total: number | undefine
   // authenticated web link (only useful to the logged-in owner). --raw
   // swaps either of these for the underlying image URL, carrying the share
   // key along so it still works without a login.
-  let urlFor = (asset: AssetResponseDto) => assetUrl(asset.id);
+  let urlFor: (asset: AssetResponseDto) => string | Promise<string> = (asset) => assetUrl(asset.id);
   let shareKey: string | undefined;
   let expiresAt: string | undefined;
   if (share) {
@@ -174,14 +189,16 @@ async function printResults(assets: AssetResponseDto[], total: number | undefine
     urlFor = (asset: AssetResponseDto) => shareUrl(link.key, asset.id);
   }
   if (raw) {
-    urlFor = (asset: AssetResponseDto) => rawUrl(asset.id, shareKey, asset.type);
+    urlFor = (asset: AssetResponseDto) => rawUrl(asset, shareKey, maxVideoBytes);
   }
 
+  const urls = await Promise.all(assets.map((a) => urlFor(a)));
   if (json) {
-    const body = total === undefined ? { items: assets.map((a) => ({ ...a, url: urlFor(a) })) } : { total, items: assets.map((a) => ({ ...a, url: urlFor(a) })) };
+    const items = assets.map((a, i) => ({ ...a, url: urls[i] }));
+    const body = total === undefined ? { items } : { total, items };
     console.log(JSON.stringify(body, null, 2));
   } else {
-    console.log(assets.map((a) => formatAsset(a, urlFor(a))).join("\n"));
+    console.log(assets.map((a, i) => formatAsset(a, urls[i])).join("\n"));
     if (total !== undefined) {
       console.log(`\n${assets.length} of ${total} matching photos`);
     }
@@ -233,6 +250,7 @@ program
   .option("--json", "print raw JSON instead of a formatted list")
   .option("--share", "create a public share link for the results")
   .option("--raw", "link directly to the raw image instead of the Immich web UI")
+  .addOption(maxVideoOption())
   .action(async (query: string | undefined, opts) => {
     initClient();
     try {
@@ -248,7 +266,7 @@ program
         : await searchAssets({
             metadataSearchDto: { ...filters, withPeople: true, withExif: true, order: opts.order as AssetOrder | undefined },
           });
-      await printResults(result.assets.items, result.assets.total, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
+      await printResults(result.assets.items, result.assets.total, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw), maxVideoBytes(opts));
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
       process.exitCode = 1;
@@ -263,7 +281,8 @@ program
   .option("--json", "print raw JSON instead of a formatted list")
   .option("--share", "create a public share link for the results")
   .option("--raw", "link directly to the raw image instead of the Immich web UI")
-  .action(async (opts: { limit: string; type?: "image" | "video" | "audio" | "other"; json?: boolean; share?: boolean; raw?: boolean }) => {
+  .addOption(maxVideoOption())
+  .action(async (opts: { limit: string; type?: "image" | "video" | "audio" | "other"; json?: boolean; share?: boolean; raw?: boolean; maxVideoMb?: string }) => {
     initClient();
     try {
       const assets = await searchRandom({
@@ -274,7 +293,7 @@ program
           ...(opts.type ? { type: ASSET_TYPES[opts.type] } : {}),
         },
       });
-      await printResults(assets, undefined, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw));
+      await printResults(assets, undefined, Boolean(opts.json), Boolean(opts.share), Boolean(opts.raw), maxVideoBytes(opts));
     } catch (err) {
       console.error(`immich: ${formatError(err)}`);
       process.exitCode = 1;
@@ -339,11 +358,12 @@ program
   .option("--key <shareKey>", "shared link key, for accessing an asset via a share")
   .option("--json", "print raw JSON instead of a formatted summary")
   .option("--raw", "link directly to the raw image instead of the Immich web UI")
-  .action(async (id: string, opts: { key?: string; json?: boolean; raw?: boolean }) => {
+  .addOption(maxVideoOption())
+  .action(async (id: string, opts: { key?: string; json?: boolean; raw?: boolean; maxVideoMb?: string }) => {
     initClient();
     try {
       const asset = await getAssetInfo({ id, key: opts.key });
-      const url = opts.raw ? rawUrl(asset.id, opts.key, asset.type) : assetUrl(asset.id);
+      const url = opts.raw ? await rawUrl(asset, opts.key, maxVideoBytes(opts)) : assetUrl(asset.id);
       if (opts.json) {
         console.log(JSON.stringify({ ...asset, url }, null, 2));
       } else {
